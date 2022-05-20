@@ -1,5 +1,8 @@
 //#include "minimal_d3d11.cpp"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #pragma comment(lib, "user32")
 #pragma comment(lib, "d3d11")
 #pragma comment(lib, "d3dcompiler")
@@ -11,6 +14,9 @@
 #include <DirectXMath.h>
 
 #define TITLE "Rando's Sandbox"
+
+#define W_WIDTH 800
+#define W_HEIGHT 600
 
 struct Vert
 {
@@ -50,7 +56,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     RegisterClassEx(&wc);
     
-    RECT wr = {0, 0, 800, 600};
+    RECT wr = {0, 0, W_WIDTH, W_HEIGHT};
     AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);
     
     window = CreateWindowEx(NULL,
@@ -144,8 +150,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     viewport.TopLeftX = 0;
     viewport.TopLeftY = 0;
-    viewport.Width = 800;
-    viewport.Height = 600;
+    viewport.Width = W_WIDTH;
+    viewport.Height = W_HEIGHT;
     
     deviceContext->RSSetViewports(1, &viewport);
     
@@ -163,12 +169,116 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     deviceContext->PSSetShader(pPS, 0, 0);
     
     
+    //~ WRITE TO TEXTURE
+    int x,y,n;
+    unsigned char *img = stbi_load("yeet.bmp", &x, &y, &n, 0);
+    
+    const int pixel_count = W_WIDTH * W_HEIGHT;
+    
+    float *texture_data = (float*)malloc(sizeof(float) * pixel_count * 4);
+    for (int i = 0; i < pixel_count * 4; i++)
+    {
+        texture_data[i] = img[i] / 255.0f;
+        
+        /* 
+                texture_data[i * 4] = 1.0f;
+                texture_data[i * 4 + 1] = (i % 16 == 0 ? 0.0f : 1.0f);
+                texture_data[i * 4 + 2] = 1.0f;
+                texture_data[i * 4 + 3] = 1.0f;
+         */
+    }
+    
+    
+    /* 
+        ID3D11Buffer *texture_buffer;
+        
+        D3D11_BUFFER_DESC bufferDesc;
+        ZeroMemory(&bufferDesc, sizeof(bufferDesc));
+        
+        bufferDesc.Usage = D3D11_USAGE_DYNAMIC; // write access access by CPU and GPU
+        bufferDesc.ByteWidth = sizeof(texture_data);
+        bufferDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; // allow CPU to write in buffer
+        
+        device->CreateBuffer(&bufferDesc, NULL, &texture_buffer);
+        
+        D3D11_MAPPED_SUBRESOURCE ms;
+        deviceContext->Map(texture_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+        memcpy(ms.pData, texture_data, sizeof(texture_data));
+        deviceContext->Unmap(texture_buffer, NULL);
+     */
+    
+    // NOTE(randy): this should be the texture being fully created
+    D3D11_TEXTURE2D_DESC texture_desc = {};
+    texture_desc.Width = W_WIDTH;
+    texture_desc.Height = W_HEIGHT;
+    texture_desc.MipLevels = 1;
+    texture_desc.ArraySize = 1;
+    texture_desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    texture_desc.SampleDesc.Count = 1;
+    texture_desc.Usage = D3D11_USAGE_DYNAMIC;
+    texture_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    texture_desc.MiscFlags = 0;
+    
+    ID3D11Texture2D *pTexture = NULL;
+    device->CreateTexture2D(&texture_desc, 0, &pTexture);
+    ID3D11ShaderResourceView *res_view;
+    device->CreateShaderResourceView(pTexture, 0, &res_view);
+    
+    deviceContext->PSSetShaderResources(0, 1, &res_view); // TODO(randy): here or later?
+    
+    D3D11_MAPPED_SUBRESOURCE sub_rsrc = {0};
+    deviceContext->Map(pTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &sub_rsrc);
+    
+    memcpy(sub_rsrc.pData, texture_data, sizeof(float) * pixel_count * 4);
+    //sub_rsrc.pData = texture_data;
+    
+    deviceContext->Unmap(pTexture, 0);
+    
+    /* 
+    // old instant fill
+        D3D11_SUBRESOURCE_DATA tSData= {};
+        tSData.pSysMem = texture_data;
+        tSData.SysMemPitch = W_WIDTH * 32;
+        tSData.SysMemSlicePitch = 0;
+        
+        ID3D11Texture2D *pTexture = NULL;
+        device->CreateTexture2D(&desc, &tSData, &pTexture);
+     */
+    
+    
+    
+    
+    D3D11_SAMPLER_DESC sampler_desc = {};
+    {
+        sampler_desc.Filter         = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        sampler_desc.AddressU       = D3D11_TEXTURE_ADDRESS_WRAP;
+        sampler_desc.AddressV       = D3D11_TEXTURE_ADDRESS_WRAP;
+        sampler_desc.AddressW       = D3D11_TEXTURE_ADDRESS_WRAP;
+        sampler_desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    }
+    
+    ID3D11SamplerState *sampler;
+    device->CreateSamplerState(&sampler_desc, &sampler);
+    
+    deviceContext->PSSetSamplers(0, 1, &sampler);
+    
+    
+    
     //~ VERTEX BUFFER
     Vert our_verts[] =
     {
-        {0.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f},
-        {0.45f, -0.5, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
-        {-0.45f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f}
+        /* 
+                {0.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f},
+                {0.45f, -0.5, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
+                {-0.45f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f}
+                 */
+        
+        {-1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f},
+        {-1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f},
+        {1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f},
+        {1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f},
     };
     
     ID3D11Buffer *pVBuffer;
@@ -177,7 +287,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     ZeroMemory(&bufferDesc, sizeof(bufferDesc));
     
     bufferDesc.Usage = D3D11_USAGE_DYNAMIC; // write access access by CPU and GPU
-    bufferDesc.ByteWidth = sizeof(our_verts); // TODO(randy): test
+    bufferDesc.ByteWidth = sizeof(our_verts);
     bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER; // use as a vertex buffer
     bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; // allow CPU to write in buffer
     
@@ -224,17 +334,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         
         
         
-        //~ RENDER TIMEEE
+        //~ RENDER TRIANGLES
         UINT stride = sizeof(Vert);
         UINT offset = 0;
         deviceContext->IASetVertexBuffers(0, 1, &pVBuffer, &stride, &offset);
         
-        deviceContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        deviceContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         // deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
         // NOTE(randy): I could use the line strips for rendering debug lines yay
         
-        deviceContext->Draw(3, 0); // draw the vertex buffer to the back buffer
-        
+        deviceContext->Draw(4, 0); // draw the vertex buffer to the back buffer
         
         
         

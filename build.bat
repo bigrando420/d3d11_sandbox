@@ -1,3 +1,3 @@
 @echo off
 
-cl main.cpp
+cl /Zi /nologo /FC main.cpp

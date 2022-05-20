@@ -2,11 +2,7 @@ struct VOut
 {
     float4 position : SV_POSITION;
     float4 color : COLOR;
-	float2 test_pos : VPOS;
 };
-
-Texture2D test : register(t0);
-SamplerState default_sampler : register(s0);
 
 VOut vs_main(float4 position : POSITION, float4 color : COLOR)
 {
@@ -21,11 +17,5 @@ VOut vs_main(float4 position : POSITION, float4 color : COLOR)
 
 float4 ps_main(float4 position : SV_POSITION, float4 color : COLOR) : SV_TARGET
 {
-	float u = position.x / 600.0f;
-	float v = position.y / 400.0f;
-
-	//return float4(u, v, 0.0f, 1.0f);
-
-   return test.Sample(default_sampler, float2(u, v));
-	//return color;
+    return color;
 }
