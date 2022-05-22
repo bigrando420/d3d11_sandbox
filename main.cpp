@@ -134,11 +134,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     ID3D11Texture2D* frameBuffer;
     swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&frameBuffer));
     
-    // TODO(randy): maybe I can fill out this texture myself?
-    // that way I can render directly to the back buffer?
-    // or maybe just use the pixel shader and sample from my texture?
-    // TODO(randy): might have to look into constants
-    
     ID3D11RenderTargetView* frameBufferView;
     device->CreateRenderTargetView(frameBuffer, nullptr, &frameBufferView);
     
