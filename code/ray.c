@@ -11,6 +11,20 @@ typedef struct Ray
     Vec3F32 dir;
 } Ray;
 
+static F32 HitSphere(Vec3F32 centre, F32 radius, Ray r)
+{
+    Vec3F32 oc = Sub3F32(r.origin, centre);
+    F32 a = LengthSquared3F32(r.dir);
+    F32 half_b = Dot3F32(oc, r.dir);
+    F32 c = LengthSquared3F32(oc) - radius * radius;
+    F32 discriminant = half_b * half_b - a * c;
+    
+    if (discriminant < 0.0f)
+        return -1.0f;
+    else
+        return (-half_b - sqrt(discriminant)) / a;
+}
+
 static Vec3F32 RayAt(Ray r, F32 t)
 {
     return Add3F32(r.origin, Scale3F32(r.dir, t));
@@ -18,8 +32,20 @@ static Vec3F32 RayAt(Ray r, F32 t)
 
 static Vec4F32 RayColor(Ray *r)
 {
+    F32 t = HitSphere(V3F32(0.0f, 0.0f, -1.0f), 0.5f, *r);
+    if (t > 0.0)
+    {
+        Vec3F32 n = Normalize3F32(Sub3F32(RayAt(*r, t), V3F32(0.0f, 0.0f, -1.0f)));
+        
+        Vec3F32 col = Scale3F32(V3F32(n.x + 1.0f, n.y + 1.0f, n.z + 1.0f), 0.5f);
+        
+        return V4F32(col.r, col.g, col.b, 1.0f);
+    }
+    
+    V4F32(1.0f, 0.0f, 0.0f, 1.0f);
+    
     Vec3F32 unit_dir = Normalize3F32(r->dir);
-    F32 t = (unit_dir.y + 1.0f) * 0.5f;
+    t = (unit_dir.y + 1.0f) * 0.5f;
     
     Vec3F32 col = Add3F32(Scale3F32(V3F32(1.0f, 1.0f, 1.0f), 1.0f - t),
                           Scale3F32(V3F32(0.5f, 0.7f, 1.0f), t));
