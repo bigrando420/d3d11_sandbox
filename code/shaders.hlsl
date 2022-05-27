@@ -1,3 +1,8 @@
+cbuffer VS_CONSTANT_BUFFER : register(b0)
+{
+   float pixel_scale;
+}; // don't actually need this yet lol
+
 struct VOut
 {
     float4 position : SV_POSITION;

@@ -19,6 +19,10 @@
 
 #include "base/base_inc.h"
 
+#define W_WIDTH 800
+#define W_HEIGHT 600
+#define ASPECT_RATIO = (F32)W_WIDTH / (F32)W_HEIGHT;
+
 #include "ray.c"
 
 //~
@@ -192,8 +196,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     // NOTE(randy): this should be the texture being fully created
     D3D11_TEXTURE2D_DESC texture_desc = {};
-    texture_desc.Width = W_WIDTH;
-    texture_desc.Height = W_HEIGHT;
+    texture_desc.Width = sim_width;
+    texture_desc.Height = sim_height;
     texture_desc.MipLevels = 1;
     texture_desc.ArraySize = 1;
     texture_desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -213,29 +217,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     D3D11_MAPPED_SUBRESOURCE sub_rsrc = {0};
     deviceContext->Map(pTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &sub_rsrc);
     
-    InitRay();
-    memcpy(sub_rsrc.pData, texture_data, sizeof(float) * PIXEL_COUNT * 4);
-    //sub_rsrc.pData = texture_data;
+    InitTextureData();
+    memcpy(sub_rsrc.pData, texture_data, texture_data_size);
     
     deviceContext->Unmap(pTexture, 0);
-    
-    /* 
-    // old instant fill
-        D3D11_SUBRESOURCE_DATA tSData= {};
-        tSData.pSysMem = texture_data;
-        tSData.SysMemPitch = W_WIDTH * 32;
-        tSData.SysMemSlicePitch = 0;
-        
-        ID3D11Texture2D *pTexture = NULL;
-        device->CreateTexture2D(&desc, &tSData, &pTexture);
-     */
-    
     
     
     
     D3D11_SAMPLER_DESC sampler_desc = {};
     {
-        sampler_desc.Filter         = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        sampler_desc.Filter         = D3D11_FILTER_MIN_MAG_MIP_POINT;
         sampler_desc.AddressU       = D3D11_TEXTURE_ADDRESS_WRAP;
         sampler_desc.AddressV       = D3D11_TEXTURE_ADDRESS_WRAP;
         sampler_desc.AddressW       = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -247,6 +238,32 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     deviceContext->PSSetSamplers(0, 1, &sampler);
     
+    
+    //~ CONST BUFFER
+    ID3D11Buffer *p_const_buffer;
+    
+    typedef struct ConstBuffer
+    {
+        F32 pixel_scale;
+    } ConstBuffer;
+    
+    ConstBuffer const_buff = {pixel_scale};
+    
+    D3D11_BUFFER_DESC cbDesc;
+    cbDesc.ByteWidth = sizeof(ConstBuffer);
+    cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+    cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    cbDesc.MiscFlags = 0;
+    cbDesc.StructureByteStride = 0;
+    
+    D3D11_SUBRESOURCE_DATA subres_cbuff;
+    subres_cbuff.pSysMem = &const_buff;
+    subres_cbuff.SysMemPitch = 0;
+    subres_cbuff.SysMemSlicePitch = 0;
+    
+    device->CreateBuffer(&cbDesc, &subres_cbuff, &p_const_buffer);
+    deviceContext->VSSetConstantBuffers(0, 1, &p_const_buffer);
     
     
     //~ VERTEX BUFFER
