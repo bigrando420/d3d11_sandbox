@@ -194,6 +194,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         deviceContext->Unmap(texture_buffer, NULL);
      */
     
+    
+    Init();
+    
+    
     // NOTE(randy): this should be the texture being fully created
     D3D11_TEXTURE2D_DESC texture_desc = {};
     texture_desc.Width = sim_width;
@@ -214,13 +218,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     deviceContext->PSSetShaderResources(0, 1, &res_view); // TODO(randy): here or later?
     
-    D3D11_MAPPED_SUBRESOURCE sub_rsrc = {0};
-    deviceContext->Map(pTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &sub_rsrc);
     
-    InitTextureData();
-    memcpy(sub_rsrc.pData, texture_data, texture_data_size);
-    
-    deviceContext->Unmap(pTexture, 0);
     
     
     
@@ -315,6 +313,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     deviceContext->IASetInputLayout(pLayout);
     
     
+    // TODO(randy): mount telescope and only use the bare minimum
+    
+    
     
     //~ LOOP
     while (true)
@@ -326,6 +327,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             if (msg.message == WM_QUIT) return 0;
             DispatchMessageA(&msg);
         }
+        
+        Update();
+        
+        D3D11_MAPPED_SUBRESOURCE sub_rsrc = {0};
+        deviceContext->Map(pTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &sub_rsrc);
+        
+        memcpy(sub_rsrc.pData, texture_data, texture_data_size);
+        
+        deviceContext->Unmap(pTexture, 0);
+        
+        
         
         //~ clear the buffer with blue
         float col[4] = {0.0f, 0.2f, 0.4f, 1.0f};
